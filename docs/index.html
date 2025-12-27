@@ -187,13 +187,47 @@
     }
 
     /* Install section */
-    .install-command {
+    .install-methods {
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .install-method {
       background: var(--bg-deep);
       border: 1px solid var(--border-subtle);
       border-radius: 3px;
       overflow: hidden;
+    }
+
+    .install-method.recommended {
+      border-color: var(--border-glow);
+    }
+
+    .install-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .install-label .badge {
+      padding: 0.15rem 0.4rem;
+      background: rgba(0, 212, 255, 0.15);
+      border-radius: 2px;
+      font-size: 0.6rem;
+      color: var(--cyan-glow);
+    }
+
+    .install-command {
+      display: flex;
+      align-items: center;
     }
 
     .install-prompt {
@@ -442,15 +476,36 @@
         Installation
       </div>
       <div class="panel-content">
-        <div class="install-command">
-          <span class="install-prompt">$</span>
-          <code class="install-text"><span>go install</span> github.com/mdaguerre/go-metar@latest</code>
-          <button class="copy-btn" onclick="copyInstall()" title="Copy to clipboard">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </button>
+        <div class="install-methods">
+          <div class="install-method recommended">
+            <div class="install-label">
+              Homebrew (macOS/Linux)
+              <span class="badge">Recommended</span>
+            </div>
+            <div class="install-command">
+              <span class="install-prompt">$</span>
+              <code class="install-text"><span>brew tap</span> mdaguerre/tap && <span>brew install</span> go-metar</code>
+              <button class="copy-btn" onclick="copyText('brew tap mdaguerre/tap && brew install go-metar')" title="Copy to clipboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="install-method">
+            <div class="install-label">Go</div>
+            <div class="install-command">
+              <span class="install-prompt">$</span>
+              <code class="install-text"><span>go install</span> github.com/mdaguerre/go-metar@latest</code>
+              <button class="copy-btn" onclick="copyText('go install github.com/mdaguerre/go-metar@latest')" title="Copy to clipboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -547,12 +602,13 @@
   </div>
 
   <script>
-    function copyInstall() {
-      navigator.clipboard.writeText('go install github.com/mdaguerre/go-metar@latest');
-      const btn = document.querySelector('.copy-btn');
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      const btn = event.currentTarget;
+      const originalHTML = btn.innerHTML;
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
       setTimeout(() => {
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        btn.innerHTML = originalHTML;
       }, 2000);
     }
   </script>
