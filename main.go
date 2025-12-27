@@ -15,11 +15,16 @@ import (
 	"github.com/mdaguerre/go-metar/metar"
 )
 
+// version is set at build time via ldflags by goreleaser.
+// See .goreleaser.yaml: -X main.version={{.Version}}
+var version = "dev"
+
 // These variables hold our CLI flag values.
 // In Go, package-level variables are declared outside functions.
 var (
-	rawOutput bool
-	allOutput bool
+	rawOutput   bool
+	allOutput   bool
+	showVersion bool
 )
 
 func main() {
@@ -34,12 +39,28 @@ Examples:
   go-metar EGLL --raw  # Get raw METAR for London Heathrow
   go-metar LFPG --all  # Get both raw and decoded for Paris CDG`,
 
-		// Args: cobra.ExactArgs(1) means the command requires exactly 1 argument
-		Args: cobra.ExactArgs(1),
-
 		// Run is the function that executes when the command is called.
 		// It receives the command itself and the positional arguments (args).
 		Run: func(cmd *cobra.Command, args []string) {
+			// Handle --version flag
+			if showVersion {
+				fmt.Printf("go-metar %s\n", version)
+				return
+			}
+
+			// Validate that we have exactly 1 argument when not showing version
+			if len(args) != 1 {
+				fmt.Fprintln(os.Stderr, "Error: requires exactly 1 argument (ICAO code)")
+				cmd.Usage()
+				os.Exit(1)
+			}
+
+			// Validate mutually exclusive flags
+			if rawOutput && allOutput {
+				fmt.Fprintln(os.Stderr, "Error: cannot use both --raw and --all flags")
+				os.Exit(1)
+			}
+
 			icao := args[0] // First argument is the ICAO code
 
 			// Fetch METAR data from the API
@@ -70,6 +91,7 @@ Examples:
 	// Parameters: variable pointer, long name, short name, default value, description
 	rootCmd.Flags().BoolVarP(&rawOutput, "raw", "r", false, "Show raw METAR string only")
 	rootCmd.Flags().BoolVarP(&allOutput, "all", "a", false, "Show both raw and decoded output")
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 
 	// Execute the command - this parses arguments and runs the appropriate function
 	if err := rootCmd.Execute(); err != nil {

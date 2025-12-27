@@ -8,7 +8,14 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 )
+
+// httpClient is reused across requests to avoid creating a new client each time.
+// This is more efficient and follows HTTP best practices.
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
 
 // METAR represents the weather data returned by the API.
 // In Go, structs are like classes in other languages.
@@ -39,6 +46,16 @@ type Cloud struct {
 // We only request one, so we'll take the first element.
 type apiResponse []METAR
 
+// isAlphanumeric checks if all characters in the string are alphanumeric.
+func isAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // Fetch retrieves METAR data for the given ICAO airport code.
 // In Go, function names starting with uppercase are "exported" (public).
 // Lowercase names are private to the package.
@@ -46,9 +63,12 @@ func Fetch(icao string) (*METAR, error) {
 	// Convert to uppercase - ICAO codes are always uppercase
 	icao = strings.ToUpper(icao)
 
-	// Validate ICAO code format (4 letters)
+	// Validate ICAO code format (4 alphanumeric characters)
 	if len(icao) != 4 {
 		return nil, fmt.Errorf("invalid ICAO code: must be 4 characters (e.g., KJFK)")
+	}
+	if !isAlphanumeric(icao) {
+		return nil, fmt.Errorf("invalid ICAO code: must contain only letters and numbers")
 	}
 
 	// Build the API URL
@@ -58,14 +78,8 @@ func Fetch(icao string) (*METAR, error) {
 		icao,
 	)
 
-	// Create an HTTP client with a timeout
-	// Always set timeouts on HTTP clients to avoid hanging forever!
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	// Make the GET request
-	resp, err := client.Get(url)
+	// Make the GET request using the shared HTTP client
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch METAR: %w", err)
 	}

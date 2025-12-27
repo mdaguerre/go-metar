@@ -40,6 +40,23 @@ func TestFetchValidation(t *testing.T) {
 			expectError: true,
 			errorMsg:    "must be 4 characters",
 		},
+		{
+			name:        "contains special characters",
+			icao:        "KJ@K",
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+		{
+			name:        "contains spaces",
+			icao:        "KJ K",
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+		{
+			name:        "valid with numbers",
+			icao:        "K1FK",
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {

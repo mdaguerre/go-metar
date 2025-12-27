@@ -43,7 +43,25 @@ var (
 
 	valueStyle = lipgloss.NewStyle().
 			Foreground(valueColor)
+
+	// Flight rules styles - pre-defined for reuse
+	vfrStyle   = lipgloss.NewStyle().Foreground(vfrColor).Bold(true)
+	mvfrStyle  = lipgloss.NewStyle().Foreground(mvfrColor).Bold(true)
+	ifrStyle   = lipgloss.NewStyle().Foreground(ifrColor).Bold(true)
+	lifrStyle  = lipgloss.NewStyle().Foreground(lifrColor).Bold(true)
 )
+
+// coverMap maps cloud cover abbreviations to full descriptions.
+// Defined at package level for efficiency (avoids recreating on each call).
+var coverMap = map[string]string{
+	"SKC": "Clear",
+	"CLR": "Clear",
+	"FEW": "Few",
+	"SCT": "Scattered",
+	"BKN": "Broken",
+	"OVC": "Overcast",
+	"OVX": "Obscured",
+}
 
 // Decode converts a METAR struct into a styled, human-readable string.
 func Decode(m *METAR) string {
@@ -98,13 +116,13 @@ func formatFlightLine(fr string) string {
 
 	switch fr {
 	case "VFR":
-		style = lipgloss.NewStyle().Foreground(vfrColor).Bold(true)
+		style = vfrStyle
 	case "MVFR":
-		style = lipgloss.NewStyle().Foreground(mvfrColor).Bold(true)
+		style = mvfrStyle
 	case "IFR":
-		style = lipgloss.NewStyle().Foreground(ifrColor).Bold(true)
+		style = ifrStyle
 	case "LIFR":
-		style = lipgloss.NewStyle().Foreground(lifrColor).Bold(true)
+		style = lifrStyle
 	default:
 		style = valueStyle
 	}
@@ -176,16 +194,6 @@ func formatClouds(clouds []Cloud) string {
 
 // expandCloudCover converts abbreviations to full words.
 func expandCloudCover(cover string) string {
-	coverMap := map[string]string{
-		"SKC": "Clear",
-		"CLR": "Clear",
-		"FEW": "Few",
-		"SCT": "Scattered",
-		"BKN": "Broken",
-		"OVC": "Overcast",
-		"OVX": "Obscured",
-	}
-
 	if expanded, ok := coverMap[cover]; ok {
 		return expanded
 	}
