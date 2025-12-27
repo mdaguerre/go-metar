@@ -37,16 +37,16 @@ go-metar LFPG --all
 ## Example Output
 
 ```
-╭────────────────────────────────────────────╮
-│ KJFK · John F Kennedy International        │
-│ Time       02 Jan 2025 14:51 UTC           │
-│ Flight     VFR                             │
-│ Wind       350° at 8 kt                    │
-│ Visibility 10+ SM                          │
-│ Temp       7°C (Dewpoint: -1°C)            │
-│ Altimeter  30.21 inHg / 1023 hPa           │
-│ Clouds     Few @ 4500 ft, Scattered @ 25000 ft │
-╰────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────╮
+│ KJFK · John F Kennedy International              │
+│ Time       02 Jan 2025 14:51 UTC                 │
+│ Flight     VFR                                   │
+│ Wind       350° at 8 kt                          │
+│ Visibility 10+ SM                                │
+│ Temp       7°C (Dewpoint: -1°C)                  │
+│ Altimeter  30.21 inHg / 1023 hPa                 │
+│ Clouds     Few @ 4500 ft, Scattered @ 25000 ft   │
+╰──────────────────────────────────────────────────╯
 ```
 
 ## Data Source
