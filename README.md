@@ -49,6 +49,16 @@ go-metar LFPG --all
 ╰──────────────────────────────────────────────────╯
 ```
 
+## Testing
+
+```bash
+# Run unit tests
+go test ./... -short
+
+# Run all tests (includes integration tests that hit the API)
+go test ./...
+```
+
 ## Data Source
 
 Weather data is fetched from [Aviation Weather Center](https://aviationweather.gov/).
