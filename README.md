@@ -4,11 +4,20 @@ A command-line tool for fetching METAR aviation weather reports.
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap mdaguerre/tap
+brew install go-metar
+```
+
+### Go
+
 ```bash
 go install github.com/mdaguerre/go-metar@latest
 ```
 
-Or build from source:
+### From source
 
 ```bash
 go build -o go-metar
