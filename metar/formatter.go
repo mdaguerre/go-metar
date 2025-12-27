@@ -10,14 +10,10 @@ import (
 
 // Color definitions for flight rules
 var (
-	// VFR = Green (good flying conditions)
-	vfrColor = lipgloss.Color("#22c55e")
-	// MVFR = Yellow/Orange (marginal conditions)
-	mvfrColor = lipgloss.Color("#eab308")
-	// IFR = Red (instrument required)
-	ifrColor = lipgloss.Color("#ef4444")
-	// LIFR = Magenta (very poor conditions)
-	lifrColor = lipgloss.Color("#d946ef")
+	vfrColor  = lipgloss.Color("#22c55e") // Green (good flying conditions)
+	mvfrColor = lipgloss.Color("#eab308") // Yellow/Orange (marginal conditions)
+	ifrColor  = lipgloss.Color("#ef4444") // Red (instrument required)
+	lifrColor = lipgloss.Color("#d946ef") // Magenta (very poor conditions)
 
 	// UI colors
 	headerColor  = lipgloss.Color("#60a5fa") // Light blue
@@ -92,7 +88,6 @@ func Decode(m *METAR) string {
 
 // formatLine creates a styled label: value line
 func formatLine(label, value string) string {
-	// Pad label to align values
 	paddedLabel := fmt.Sprintf("%-11s", label)
 	return labelStyle.Render(paddedLabel) + valueStyle.Render(value) + "\n"
 }
