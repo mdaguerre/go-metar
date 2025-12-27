@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>go-metar | Aviation Weather CLI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0a0e14;
+      --bg-panel: #0d1117;
+      --bg-elevated: #161b22;
+      --cyan-glow: #00d4ff;
+      --cyan-dim: #0891b2;
+      --green-status: #22c55e;
+      --amber-warning: #f59e0b;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-dim: #484f58;
+      --border-subtle: rgba(0, 212, 255, 0.15);
+      --border-glow: rgba(0, 212, 255, 0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Radar grid background */
+    .radar-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .radar-sweep {
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(from 0deg, transparent 0deg, rgba(0, 212, 255, 0.06) 20deg, transparent 40deg);
+      animation: sweep 8s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes sweep {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 4rem;
+      padding-top: 2rem;
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--cyan-glow);
+      text-shadow:
+        0 0 20px rgba(0, 212, 255, 0.5),
+        0 0 40px rgba(0, 212, 255, 0.3),
+        0 0 60px rgba(0, 212, 255, 0.2);
+      margin-bottom: 0.5rem;
+      animation: flicker 4s ease-in-out infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.95; }
+      52% { opacity: 1; }
+    }
+
+    .tagline {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 2px;
+      font-size: 0.75rem;
+      color: var(--green-status);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green-status);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green-status); }
+      50% { opacity: 0.6; box-shadow: 0 0 8px var(--green-status); }
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+      opacity: 0.5;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan-dim);
+    }
+
+    .panel-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.8;
+    }
+
+    .panel-content {
+      padding: 1.5rem 1.25rem;
+    }
+
+    /* Install section */
+    .install-command {
+      display: flex;
+      align-items: center;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .install-prompt {
+      padding: 1rem;
+      color: var(--amber-warning);
+      font-weight: 500;
+      border-right: 1px solid var(--border-subtle);
+      user-select: none;
+    }
+
+    .install-text {
+      flex: 1;
+      padding: 1rem;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .install-text span {
+      color: var(--cyan-glow);
+    }
+
+    .copy-btn {
+      padding: 1rem 1.25rem;
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--cyan-glow);
+    }
+
+    /* Usage section */
+    .usage-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .usage-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+    }
+
+    .usage-code {
+      font-size: 0.85rem;
+      color: var(--cyan-glow);
+      white-space: nowrap;
+    }
+
+    .usage-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    /* Output display - styled like cockpit instrument */
+    .output-display {
+      background: var(--bg-deep);
+      border: 2px solid var(--border-glow);
+      border-radius: 4px;
+      padding: 1.5rem;
+      position: relative;
+      box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(0, 212, 255, 0.1);
+    }
+
+    .output-display::before {
+      content: 'METAR READOUT';
+      position: absolute;
+      top: -0.6rem;
+      left: 1rem;
+      padding: 0 0.5rem;
+      background: var(--bg-panel);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--cyan-dim);
+    }
+
+    .output-box {
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .output-line {
+      display: flex;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+      padding: 0.4rem 0;
+    }
+
+    .output-line:last-child {
+      border-bottom: none;
+    }
+
+    .output-label {
+      width: 100px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .output-value {
+      color: var(--text-primary);
+    }
+
+    .output-value.highlight {
+      color: var(--cyan-glow);
+      font-weight: 500;
+    }
+
+    .output-value.status-vfr {
+      color: var(--green-status);
+      font-weight: 500;
+    }
+
+    .scanline {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+      opacity: 0.3;
+      animation: scan 3s linear infinite;
+    }
+
+    @keyframes scan {
+      0% { top: 0; opacity: 0.3; }
+      50% { opacity: 0.5; }
+      100% { top: 100%; opacity: 0.3; }
+    }
+
+    /* GitHub link */
+    .github-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1.5rem;
+      background: transparent;
+      border: 1px solid var(--border-glow);
+      border-radius: 3px;
+      color: var(--cyan-glow);
+      text-decoration: none;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+
+    .github-link:hover {
+      background: rgba(0, 212, 255, 0.1);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .github-link svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .footer-text {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+    }
+
+    .footer-text a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .footer-text a:hover {
+      color: var(--cyan-glow);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .usage-item {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+
+      .usage-desc {
+        text-align: left;
+      }
+
+      .install-command {
+        flex-direction: column;
+      }
+
+      .install-prompt {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 0.75rem 1rem;
+      }
+
+      .copy-btn {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border-subtle);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="radar-bg"></div>
+  <div class="radar-sweep"></div>
+
+  <div class="container">
+    <header>
+      <h1 class="logo">GO-METAR</h1>
+      <p class="tagline">Aviation Weather from Your Terminal</p>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span>Real-time METAR Data</span>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="panel-header">
+        <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 17l6-6-6-6M12 19h8"/>
+        </svg>
+        Installation
+      </div>
+      <div class="panel-content">
+        <div class="install-command">
+          <span class="install-prompt">$</span>
+          <code class="install-text"><span>go install</span> github.com/mdaguerre/go-metar@latest</code>
+          <button class="copy-btn" onclick="copyInstall()" title="Copy to clipboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        Usage
+      </div>
+      <div class="panel-content">
+        <div class="usage-grid">
+          <div class="usage-item">
+            <code class="usage-code">go-metar KJFK</code>
+            <span class="usage-desc">Decoded weather report</span>
+          </div>
+          <div class="usage-item">
+            <code class="usage-code">go-metar EGLL --raw</code>
+            <span class="usage-desc">Raw METAR string only</span>
+          </div>
+          <div class="usage-item">
+            <code class="usage-code">go-metar LFPG --all</code>
+            <span class="usage-desc">Both raw and decoded</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        Output
+      </div>
+      <div class="panel-content">
+        <div class="output-display">
+          <div class="scanline"></div>
+          <div class="output-box">
+            <div class="output-line">
+              <span class="output-label">Station</span>
+              <span class="output-value highlight">KJFK - John F Kennedy International</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Time</span>
+              <span class="output-value">02 Jan 2025 14:51 UTC</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Flight</span>
+              <span class="output-value status-vfr">VFR</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Wind</span>
+              <span class="output-value">350° at 8 kt</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Visibility</span>
+              <span class="output-value">10+ SM</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Temp</span>
+              <span class="output-value">7°C (Dewpoint: -1°C)</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Altimeter</span>
+              <span class="output-value">30.21 inHg / 1023 hPa</span>
+            </div>
+            <div class="output-line">
+              <span class="output-label">Clouds</span>
+              <span class="output-value">Few @ 4500 ft, Scattered @ 25000 ft</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 2.5rem;">
+      <a href="https://github.com/mdaguerre/go-metar" class="github-link" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <footer>
+      <p class="footer-text">
+        Data source: <a href="https://aviationweather.gov/" target="_blank" rel="noopener">Aviation Weather Center</a>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    function copyInstall() {
+      navigator.clipboard.writeText('go install github.com/mdaguerre/go-metar@latest');
+      const btn = document.querySelector('.copy-btn');
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+      setTimeout(() => {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
