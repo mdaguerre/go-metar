@@ -122,3 +122,193 @@ func TestFetchInvalidStation(t *testing.T) {
 		t.Error("Fetch(ZZZZ) expected error for invalid station, got nil")
 	}
 }
+
+func TestValidateICAO(t *testing.T) {
+	tests := []struct {
+		name        string
+		icao        string
+		want        string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid uppercase",
+			icao: "KJFK",
+			want: "KJFK",
+		},
+		{
+			name: "converts lowercase to uppercase",
+			icao: "kjfk",
+			want: "KJFK",
+		},
+		{
+			name: "mixed case",
+			icao: "KjFk",
+			want: "KJFK",
+		},
+		{
+			name: "valid with numbers",
+			icao: "K1FK",
+			want: "K1FK",
+		},
+		{
+			name:        "too short",
+			icao:        "JFK",
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+		{
+			name:        "too long",
+			icao:        "KJFKX",
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+		{
+			name:        "empty string",
+			icao:        "",
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+		{
+			name:        "contains special characters",
+			icao:        "KJ@K",
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+		{
+			name:        "contains spaces",
+			icao:        "KJ K",
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateICAO(tt.icao)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("ValidateICAO(%q) expected error, got nil", tt.icao)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("ValidateICAO(%q) error = %q, want error containing %q",
+						tt.icao, err.Error(), tt.errorMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ValidateICAO(%q) unexpected error: %v", tt.icao, err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ValidateICAO(%q) = %q, want %q", tt.icao, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFetchMultipleValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		icaos       []string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "empty slice",
+			icaos:       []string{},
+			expectError: true,
+			errorMsg:    "no ICAO codes provided",
+		},
+		{
+			name:        "nil slice",
+			icaos:       nil,
+			expectError: true,
+			errorMsg:    "no ICAO codes provided",
+		},
+		{
+			name:        "one invalid ICAO",
+			icaos:       []string{"KJFK", "BAD", "KLAX"},
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+		{
+			name:        "invalid characters in one",
+			icaos:       []string{"KJFK", "KL@X"},
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := FetchMultiple(tt.icaos)
+			if !tt.expectError {
+				return // Skip valid cases, they would hit the network
+			}
+			if err == nil {
+				t.Errorf("FetchMultiple(%v) expected error, got nil", tt.icaos)
+				return
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("FetchMultiple(%v) error = %q, want error containing %q",
+					tt.icaos, err.Error(), tt.errorMsg)
+			}
+		})
+	}
+}
+
+// TestFetchMultipleIntegration tests fetching multiple airports from the API.
+func TestFetchMultipleIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	icaos := []string{"KJFK", "KLAX"}
+	metars, err := FetchMultiple(icaos)
+	if err != nil {
+		t.Fatalf("FetchMultiple(%v) unexpected error: %v", icaos, err)
+	}
+
+	if len(metars) != 2 {
+		t.Errorf("FetchMultiple(%v) returned %d results, want 2", icaos, len(metars))
+	}
+
+	// Verify both airports are present (order may vary)
+	found := make(map[string]bool)
+	for _, m := range metars {
+		found[m.StationID] = true
+		if m.Raw == "" {
+			t.Errorf("METAR for %s has empty Raw string", m.StationID)
+		}
+	}
+
+	for _, icao := range icaos {
+		if !found[icao] {
+			t.Errorf("FetchMultiple(%v) missing result for %s", icaos, icao)
+		}
+	}
+}
+
+// TestFetchMultipleSingleAirport verifies FetchMultiple works with a single airport.
+func TestFetchMultipleSingleAirport(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	metars, err := FetchMultiple([]string{"KJFK"})
+	if err != nil {
+		t.Fatalf("FetchMultiple([KJFK]) unexpected error: %v", err)
+	}
+
+	if len(metars) != 1 {
+		t.Errorf("FetchMultiple([KJFK]) returned %d results, want 1", len(metars))
+	}
+
+	if metars[0].StationID != "KJFK" {
+		t.Errorf("StationID = %q, want KJFK", metars[0].StationID)
+	}
+}
