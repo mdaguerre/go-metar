@@ -30,14 +30,15 @@ var (
 func main() {
 	// Create the root command - this is what runs when user types "go-metar"
 	rootCmd := &cobra.Command{
-		Use:   "go-metar [ICAO]",          // How to use the command
+		Use:   "go-metar [ICAO...]",       // How to use the command
 		Short: "Fetch METAR weather data", // Brief description
 		Long: `go-metar fetches METAR aviation weather reports for any airport.
 
 Examples:
-  go-metar KJFK        # Get decoded METAR for JFK airport
-  go-metar EGLL --raw  # Get raw METAR for London Heathrow
-  go-metar LFPG --all  # Get both raw and decoded for Paris CDG`,
+  go-metar KJFK              # Get decoded METAR for JFK airport
+  go-metar KJFK KLAX EGLL    # Get METARs for multiple airports
+  go-metar EGLL --raw        # Get raw METAR for London Heathrow
+  go-metar KJFK KLAX --all   # Get both raw and decoded for multiple airports`,
 
 		// Run is the function that executes when the command is called.
 		// It receives the command itself and the positional arguments (args).
@@ -48,9 +49,9 @@ Examples:
 				return
 			}
 
-			// Validate that we have exactly 1 argument when not showing version
-			if len(args) != 1 {
-				fmt.Fprintln(os.Stderr, "Error: requires exactly 1 argument (ICAO code)")
+			// Validate that we have at least 1 argument when not showing version
+			if len(args) < 1 {
+				fmt.Fprintln(os.Stderr, "Error: requires at least 1 ICAO code")
 				cmd.Usage()
 				os.Exit(1)
 			}
@@ -61,27 +62,32 @@ Examples:
 				os.Exit(1)
 			}
 
-			icao := args[0] // First argument is the ICAO code
-
-			// Fetch METAR data from the API
-			data, err := metar.Fetch(icao)
+			// Fetch METAR data for all airports
+			metars, err := metar.FetchMultiple(args)
 			if err != nil {
-				// fmt.Fprintf writes formatted output to a specific writer (os.Stderr here)
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1) // Exit with error code
+				os.Exit(1)
 			}
 
 			// Handle output based on flags
-			if rawOutput {
-				fmt.Println(data.Raw)
-			} else if allOutput {
-				fmt.Println("Raw METAR:")
-				fmt.Println(data.Raw)
-				fmt.Println("\nDecoded:")
-				fmt.Println(metar.Decode(data))
-			} else {
-				// Default: show decoded output
-				fmt.Println(metar.Decode(data))
+			for i, data := range metars {
+				if rawOutput {
+					fmt.Println(data.Raw)
+				} else if allOutput {
+					if i > 0 {
+						fmt.Println() // Blank line between airports
+					}
+					fmt.Printf("Raw METAR (%s):\n", data.StationID)
+					fmt.Println(data.Raw)
+					fmt.Println("\nDecoded:")
+					fmt.Println(metar.Decode(data))
+				} else {
+					// Default: show decoded output
+					if i > 0 {
+						fmt.Println() // Blank line between airports
+					}
+					fmt.Println(metar.Decode(data))
+				}
 			}
 		},
 	}

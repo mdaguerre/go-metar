@@ -108,3 +108,71 @@ func Fetch(icao string) (*METAR, error) {
 	// The & operator gets the memory address (creates a pointer)
 	return &data[0], nil
 }
+
+// ValidateICAO checks if an ICAO code is valid (4 alphanumeric characters).
+// Returns the uppercase ICAO code and an error if invalid.
+func ValidateICAO(icao string) (string, error) {
+	icao = strings.ToUpper(icao)
+
+	if len(icao) != 4 {
+		return "", fmt.Errorf("invalid ICAO code %q: must be 4 characters", icao)
+	}
+	if !isAlphanumeric(icao) {
+		return "", fmt.Errorf("invalid ICAO code %q: must contain only letters and numbers", icao)
+	}
+
+	return icao, nil
+}
+
+// FetchMultiple retrieves METAR data for multiple ICAO airport codes in a single request.
+// Returns a slice of METARs and any errors encountered during validation.
+func FetchMultiple(icaos []string) ([]*METAR, error) {
+	if len(icaos) == 0 {
+		return nil, fmt.Errorf("no ICAO codes provided")
+	}
+
+	// Validate all ICAO codes first
+	validICAOs := make([]string, 0, len(icaos))
+	for _, icao := range icaos {
+		validated, err := ValidateICAO(icao)
+		if err != nil {
+			return nil, err
+		}
+		validICAOs = append(validICAOs, validated)
+	}
+
+	// Build the API URL with comma-separated ICAOs
+	url := fmt.Sprintf(
+		"https://aviationweather.gov/api/data/metar?ids=%s&format=json",
+		strings.Join(validICAOs, ","),
+	)
+
+	// Make the GET request
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch METAR: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Parse the JSON response
+	var data apiResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no METAR data found for the requested airports")
+	}
+
+	// Convert to pointer slice
+	result := make([]*METAR, len(data))
+	for i := range data {
+		result[i] = &data[i]
+	}
+
+	return result, nil
+}
