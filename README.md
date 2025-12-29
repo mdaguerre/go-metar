@@ -29,11 +29,17 @@ go build -o go-metar
 # Get decoded METAR for an airport
 go-metar KJFK
 
+# Get METARs for multiple airports
+go-metar KJFK KLAX EGLL
+
 # Get raw METAR string only
 go-metar EGLL --raw
 
 # Get both raw and decoded output
 go-metar LFPG --all
+
+# Multiple airports with flags
+go-metar KJFK KLAX --raw
 ```
 
 ## Options
