@@ -312,3 +312,138 @@ func TestFetchMultipleSingleAirport(t *testing.T) {
 		t.Errorf("StationID = %q, want KJFK", metars[0].StationID)
 	}
 }
+
+// TestFetchTAFValidation tests TAF fetch validation.
+func TestFetchTAFValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		icao        string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "too short",
+			icao:        "JFK",
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+		{
+			name:        "invalid characters",
+			icao:        "KJ@K",
+			expectError: true,
+			errorMsg:    "must contain only letters and numbers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := FetchTAF(tt.icao)
+			if !tt.expectError {
+				return
+			}
+			if err == nil {
+				t.Errorf("FetchTAF(%q) expected error, got nil", tt.icao)
+				return
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("FetchTAF(%q) error = %q, want error containing %q",
+					tt.icao, err.Error(), tt.errorMsg)
+			}
+		})
+	}
+}
+
+// TestFetchTAFIntegration tests fetching TAF from the API.
+func TestFetchTAFIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	taf, err := FetchTAF("KJFK")
+	if err != nil {
+		t.Fatalf("FetchTAF(KJFK) unexpected error: %v", err)
+	}
+
+	if taf.StationID != "KJFK" {
+		t.Errorf("StationID = %q, want KJFK", taf.StationID)
+	}
+
+	if taf.RawTAF == "" {
+		t.Error("RawTAF is empty")
+	}
+
+	if len(taf.Forecasts) == 0 {
+		t.Error("Forecasts slice is empty")
+	}
+}
+
+// TestFetchMultipleTAFValidation tests TAF multi-fetch validation.
+func TestFetchMultipleTAFValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		icaos       []string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "empty slice",
+			icaos:       []string{},
+			expectError: true,
+			errorMsg:    "no ICAO codes provided",
+		},
+		{
+			name:        "one invalid ICAO",
+			icaos:       []string{"KJFK", "BAD"},
+			expectError: true,
+			errorMsg:    "must be 4 characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := FetchMultipleTAF(tt.icaos)
+			if !tt.expectError {
+				return
+			}
+			if err == nil {
+				t.Errorf("FetchMultipleTAF(%v) expected error, got nil", tt.icaos)
+				return
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("FetchMultipleTAF(%v) error = %q, want error containing %q",
+					tt.icaos, err.Error(), tt.errorMsg)
+			}
+		})
+	}
+}
+
+// TestFetchMultipleTAFIntegration tests fetching multiple TAFs from the API.
+func TestFetchMultipleTAFIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	icaos := []string{"KJFK", "KLAX"}
+	tafs, err := FetchMultipleTAF(icaos)
+	if err != nil {
+		t.Fatalf("FetchMultipleTAF(%v) unexpected error: %v", icaos, err)
+	}
+
+	if len(tafs) != 2 {
+		t.Errorf("FetchMultipleTAF(%v) returned %d results, want 2", icaos, len(tafs))
+	}
+
+	found := make(map[string]bool)
+	for _, taf := range tafs {
+		found[taf.StationID] = true
+		if taf.RawTAF == "" {
+			t.Errorf("TAF for %s has empty RawTAF", taf.StationID)
+		}
+	}
+
+	for _, icao := range icaos {
+		if !found[icao] {
+			t.Errorf("FetchMultipleTAF(%v) missing result for %s", icaos, icao)
+		}
+	}
+}

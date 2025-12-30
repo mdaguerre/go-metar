@@ -46,6 +46,34 @@ type Cloud struct {
 // We only request one, so we'll take the first element.
 type apiResponse []METAR
 
+// TAF represents Terminal Aerodrome Forecast data.
+type TAF struct {
+	StationID     string        `json:"icaoId"`        // Airport ICAO code
+	Name          string        `json:"name"`          // Airport name
+	RawTAF        string        `json:"rawTAF"`        // Raw TAF string
+	IssueTime     string        `json:"issueTime"`     // When the TAF was issued
+	ValidTimeFrom int64         `json:"validTimeFrom"` // Start of validity (Unix timestamp)
+	ValidTimeTo   int64         `json:"validTimeTo"`   // End of validity (Unix timestamp)
+	Forecasts     []TAFForecast `json:"fcsts"`         // Individual forecast periods
+}
+
+// TAFForecast represents a single forecast period within a TAF.
+type TAFForecast struct {
+	TimeFrom     int64   `json:"timeFrom"`     // Period start (Unix timestamp)
+	TimeTo       int64   `json:"timeTo"`       // Period end (Unix timestamp)
+	FcstChange   string  `json:"fcstChange"`   // Change indicator: FM, TEMPO, BECMG, PROB
+	Probability  *int    `json:"probability"`  // Probability percentage (for PROB)
+	WindDir      any     `json:"wdir"`         // Wind direction
+	WindSpeed    int     `json:"wspd"`         // Wind speed in knots
+	WindGust     *int    `json:"wgst"`         // Wind gust in knots
+	Visibility   any     `json:"visib"`        // Visibility
+	Weather      string  `json:"wxString"`     // Weather phenomena
+	Clouds       []Cloud `json:"clouds"`       // Cloud layers
+}
+
+// tafAPIResponse wraps the TAF API response.
+type tafAPIResponse []TAF
+
 // isAlphanumeric checks if all characters in the string are alphanumeric.
 func isAlphanumeric(s string) bool {
 	for _, r := range s {
@@ -170,6 +198,87 @@ func FetchMultiple(icaos []string) ([]*METAR, error) {
 
 	// Convert to pointer slice
 	result := make([]*METAR, len(data))
+	for i := range data {
+		result[i] = &data[i]
+	}
+
+	return result, nil
+}
+
+// FetchTAF retrieves TAF data for the given ICAO airport code.
+func FetchTAF(icao string) (*TAF, error) {
+	icao, err := ValidateICAO(icao)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf(
+		"https://aviationweather.gov/api/data/taf?ids=%s&format=json",
+		icao,
+	)
+
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TAF: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var data tafAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no TAF found for %s - check the ICAO code", icao)
+	}
+
+	return &data[0], nil
+}
+
+// FetchMultipleTAF retrieves TAF data for multiple ICAO airport codes.
+func FetchMultipleTAF(icaos []string) ([]*TAF, error) {
+	if len(icaos) == 0 {
+		return nil, fmt.Errorf("no ICAO codes provided")
+	}
+
+	validICAOs := make([]string, 0, len(icaos))
+	for _, icao := range icaos {
+		validated, err := ValidateICAO(icao)
+		if err != nil {
+			return nil, err
+		}
+		validICAOs = append(validICAOs, validated)
+	}
+
+	url := fmt.Sprintf(
+		"https://aviationweather.gov/api/data/taf?ids=%s&format=json",
+		strings.Join(validICAOs, ","),
+	)
+
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TAF: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var data tafAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no TAF data found for the requested airports")
+	}
+
+	result := make([]*TAF, len(data))
 	for i := range data {
 		result[i] = &data[i]
 	}
