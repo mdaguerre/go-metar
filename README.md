@@ -40,6 +40,12 @@ go-metar LFPG --all
 
 # Multiple airports with flags
 go-metar KJFK KLAX --raw
+
+# Include TAF forecast
+go-metar KJFK --taf
+
+# Raw METAR and TAF
+go-metar KJFK --raw --taf
 ```
 
 ## Options
@@ -48,6 +54,7 @@ go-metar KJFK KLAX --raw
 |------|-------|-------------|
 | `--raw` | `-r` | Show raw METAR string only |
 | `--all` | `-a` | Show both raw and decoded output |
+| `--taf` | `-t` | Include TAF forecast |
 
 ## Example Output
 

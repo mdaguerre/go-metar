@@ -25,6 +25,7 @@ var (
 	rawOutput   bool
 	allOutput   bool
 	showVersion bool
+	tafOutput   bool
 )
 
 func main() {
@@ -38,7 +39,8 @@ Examples:
   go-metar KJFK              # Get decoded METAR for JFK airport
   go-metar KJFK KLAX EGLL    # Get METARs for multiple airports
   go-metar EGLL --raw        # Get raw METAR for London Heathrow
-  go-metar KJFK KLAX --all   # Get both raw and decoded for multiple airports`,
+  go-metar KJFK KLAX --all   # Get both raw and decoded for multiple airports
+  go-metar KJFK --taf        # Include TAF forecast`,
 
 		// Run is the function that executes when the command is called.
 		// It receives the command itself and the positional arguments (args).
@@ -89,6 +91,27 @@ Examples:
 					fmt.Println(metar.Decode(data))
 				}
 			}
+
+			// Fetch and display TAF if requested
+			if tafOutput {
+				tafs, err := metar.FetchMultipleTAF(args)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error fetching TAF: %v\n", err)
+					os.Exit(1)
+				}
+
+				fmt.Println() // Blank line before TAF section
+				for i, taf := range tafs {
+					if rawOutput {
+						fmt.Println(taf.RawTAF)
+					} else {
+						if i > 0 {
+							fmt.Println()
+						}
+						fmt.Println(metar.DecodeTAF(taf))
+					}
+				}
+			}
 		},
 	}
 
@@ -97,6 +120,7 @@ Examples:
 	// Parameters: variable pointer, long name, short name, default value, description
 	rootCmd.Flags().BoolVarP(&rawOutput, "raw", "r", false, "Show raw METAR string only")
 	rootCmd.Flags().BoolVarP(&allOutput, "all", "a", false, "Show both raw and decoded output")
+	rootCmd.Flags().BoolVarP(&tafOutput, "taf", "t", false, "Include TAF forecast")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 
 	// Execute the command - this parses arguments and runs the appropriate function

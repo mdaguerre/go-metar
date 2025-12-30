@@ -6,8 +6,8 @@
   <title>go-metar | Aviation Weather CLI</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="A command-line tool for fetching and decoding METAR aviation weather reports. Get real-time weather data for multiple airports worldwide.">
-  <meta name="keywords" content="METAR, aviation, weather, CLI, command-line, terminal, airport, pilot, flight, Go, golang">
+  <meta name="description" content="A command-line tool for fetching METAR and TAF aviation weather reports. Get real-time weather data and forecasts for multiple airports worldwide.">
+  <meta name="keywords" content="METAR, TAF, aviation, weather, forecast, CLI, command-line, terminal, airport, pilot, flight, Go, golang">
   <meta name="author" content="mdaguerre">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://mdaguerre.github.io/go-metar/">
@@ -16,14 +16,14 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mdaguerre.github.io/go-metar/">
   <meta property="og:title" content="go-metar | Aviation Weather CLI">
-  <meta property="og:description" content="A command-line tool for fetching and decoding METAR aviation weather reports. Get real-time weather data for multiple airports worldwide.">
+  <meta property="og:description" content="A command-line tool for fetching METAR and TAF aviation weather reports. Get real-time weather data and forecasts for multiple airports worldwide.">
   <meta property="og:site_name" content="go-metar">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://mdaguerre.github.io/go-metar/">
   <meta name="twitter:title" content="go-metar | Aviation Weather CLI">
-  <meta name="twitter:description" content="A command-line tool for fetching and decoding METAR aviation weather reports. Get real-time weather data for multiple airports worldwide.">
+  <meta name="twitter:description" content="A command-line tool for fetching METAR and TAF aviation weather reports. Get real-time weather data and forecasts for multiple airports worldwide.">
 
   <!-- Theme -->
   <meta name="theme-color" content="#1a1a2e">
@@ -482,6 +482,11 @@
             <span class="prompt">$</span>
             <span class="cmd">go-metar EGLL --raw</span>
             <span class="comment"> # raw METAR string</span>
+          </div>
+          <div class="terminal-line">
+            <span class="prompt">$</span>
+            <span class="cmd">go-metar KJFK --taf</span>
+            <span class="comment"> # include TAF forecast</span>
           </div>
           <div class="terminal-line">
             <span class="prompt">$</span>
